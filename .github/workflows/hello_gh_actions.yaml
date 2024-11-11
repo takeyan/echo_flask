@@ -1,4 +1,4 @@
-name: ecr push image
+name: Build And Push
 
 on:
   push:
@@ -8,43 +8,32 @@ on:
 env:
   AWS_REGION: us-west-2
   ECR_REGISTRY: 992382394927.dkr.ecr.us-west-2.amazonaws.com
-  AWS_IAM_ROLE_ARN: arn:aws:iam::992382394927:role/github_actions 
-  AWS_ACCOUNT_ID: 992382394927
-
+  AWS_ROLE_ARN: arn:aws:iam::992382394927:role/github_actions  
 jobs:
-  push:
+  build:
+    name: Build And Push
     runs-on: ubuntu-latest
-    # `permissions` を設定しないと OIDC が使えないので注意
     permissions:
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@v3
-
-      # AWS 認証
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
       - uses: aws-actions/configure-aws-credentials@v4
         with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
-          role-to-assume: ${{ env.AWS_IAM_ROLE_ARN }} # GitHub Actions 用の IAM ロールの ARN
-
-      # ECR ログイン
-      - uses: aws-actions/amazon-ecr-login@v2
-        id: login-ecr # outputs で参照するために id を設定
-
-      # Docker イメージを build・push する
-      - name: build and push docker image to ecr
-        id: build-image # outputs で参照するために id を設定
-        env:
-          # ECR レジストリを `aws-actions/amazon-ecr-login` アクションの `outputs.registry` から取得
-          # REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          # イメージを push する ECR リポジトリ名
-          REPOSITORY: hello_gh_actions
-          # 任意のイメージタグ
-          IMAGE_TAG: latest
-        run: |
-          docker build . --tag ${{ env.ECR_REGISTRY }}/${{ env.REPOSITORY }}:${{ env.IMAGE_TAG }}
-          docker push ${{ env.ECR_REGISTRY }}/${{ env.REPOSITORY }}:${{ env.IMAGE_TAG }}
-          # outputs で参照するために `image_id` という名前で出力
-          echo "image_id=${{ env.ECR_REGISTRY }}/${{ env.REPOSITORY }}:${{ env.IMAGE_TAG }}" >> $GITHUB_OUTPUT
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.ECR_REGISTRY }}
+      - name: Build and push API
+        uses: docker/build-push-action@v5
+        with:
+          push: true
+          provenance: false
+          tags: ${{ env.ECR_REGISTRY }}/hello_gh_actions:latest
 
 
