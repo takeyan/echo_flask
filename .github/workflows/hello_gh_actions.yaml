@@ -1,0 +1,25 @@
+name: AWS Auth OIDC
+# 全てのブランチにpushされた時に起動する
+on:
+  push:
+    branches:
+      - '*'
+
+# 作成したロールarnを設定
+env:
+  AWS_ROLE_ARN: arn:aws:iam::992382394927:role/github_actions
+
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  aws-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: us-west-2
